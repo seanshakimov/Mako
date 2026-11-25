@@ -292,3 +292,21 @@ void lexer_dump_tokens(const Lexer *lexer) {
     }
     printf("╚══════════════════════════════════════════════════╝\n");
 }
+
+void lexer_dump_json(const Lexer *lexer, FILE *out) {
+    fprintf(out, "[\n");
+    for (int i = 0; i < lexer->token_count; i++) {
+        const Token *t = &lexer->tokens[i];
+        fprintf(out, "    {\"type\": \"%s\", \"value\": \"", token_type_name(t->type));
+        for (const char *p = t->value; *p; p++) {
+            if (*p == '"') fprintf(out, "\\\"");
+            else if (*p == '\\') fprintf(out, "\\\\");
+            else if (*p == '\n') fprintf(out, "\\n");
+            else if (*p == '\r') fprintf(out, "\\r");
+            else if (*p == '\t') fprintf(out, "\\t");
+            else fputc(*p, out);
+        }
+        fprintf(out, "\", \"line\": %d, \"col\": %d}%s\n", t->line, t->col, (i + 1 < lexer->token_count) ? "," : "");
+    }
+    fprintf(out, "  ]");
+}

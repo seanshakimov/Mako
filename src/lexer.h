@@ -100,4 +100,7 @@ const char *token_type_name(TokenType type);
 // Print all tokens (for debugging)
 void lexer_dump_tokens(const Lexer *lexer);
 
+// Output tokens as JSON array
+void lexer_dump_json(const Lexer *lexer, FILE *out);
+
 #endif // MAKO_LEXER_H

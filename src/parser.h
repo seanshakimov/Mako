@@ -103,4 +103,10 @@ ASTNode *parser_parse(Parser *parser);
 // Pretty-print the AST (for debugging / educational visualization)
 void ast_print(const ASTNode *node, int indent);
 
+// Type name helper
+const char *ast_node_type_name(NodeType type);
+
+// Output AST as JSON
+void ast_dump_json(const ASTNode *node, FILE *out);
+
 #endif // MAKO_PARSER_H

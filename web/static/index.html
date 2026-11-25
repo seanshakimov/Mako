@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mako Playground — Interactive AI Compiler</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">🦈</span>
+        <span class="logo-title">Mako</span>
+        <span class="badge version">v0.1.0</span>
+      </div>
+      <span class="tagline">Interactive Compiler & Learning Playground</span>
+    </div>
+
+    <div class="header-center">
+      <div class="example-picker">
+        <label for="exampleSelect">Examples:</label>
+        <select id="exampleSelect">
+          <option value="hello.mako">Hello World</option>
+          <option value="fibonacci.mako">Fibonacci (Recursion)</option>
+          <option value="fizzbuzz.mako">FizzBuzz Challenge</option>
+          <option value="calculator.mako">Calculator Functions</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="runBtn" class="btn btn-primary" title="Press ⌘ + Enter or Ctrl + Enter">
+        <span class="btn-icon">▶</span> Run Code
+      </button>
+      <a href="https://github.com/seanshakimov/Mako" target="_blank" class="btn btn-github">
+        GitHub
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="workspace">
+    <!-- Left Pane: Editor -->
+    <section class="pane editor-pane">
+      <div class="pane-header">
+        <div class="pane-title">
+          <span>Source Code</span>
+          <span class="filename" id="currentFilename">main.mako</span>
+        </div>
+        <div class="editor-actions">
+          <button id="clearBtn" class="btn-mini" title="Clear editor">Clear</button>
+          <button id="resetBtn" class="btn-mini" title="Reset to current example">Reset</button>
+        </div>
+      </div>
+      <div class="editor-container">
+        <div class="line-numbers" id="lineNumbers">1</div>
+        <textarea id="codeEditor" spellcheck="false" placeholder="// Write Mako code here..."></textarea>
+      </div>
+      <div class="editor-footer">
+        <span id="cursorPos">Line 1, Col 1</span>
+        <span class="shortcut-tip">Shortcut: <kbd>⌘</kbd> + <kbd>Enter</kbd></span>
+      </div>
+    </section>
+
+    <!-- Right Pane: Pipeline & Results -->
+    <section class="pane output-pane">
+      <!-- Stage Tabs -->
+      <nav class="stage-tabs">
+        <button class="tab-btn active" data-tab="tab-output">
+          <span class="tab-icon">🚀</span> Output
+        </button>
+        <button class="tab-btn" data-tab="tab-tokens">
+          <span class="tab-icon">⚡</span> Tokens <span class="tab-count" id="tokenCount">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-ast">
+          <span class="tab-icon">🌳</span> AST <span class="tab-count" id="astCount">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-c">
+          <span class="tab-icon">📄</span> Generated C
+        </button>
+        <button class="tab-btn" data-tab="tab-pipeline">
+          <span class="tab-icon">🎓</span> How it Works
+        </button>
+      </nav>
+
+      <!-- Tab Contents -->
+      <div class="tab-content-container">
+        <!-- Tab 1: Terminal Output -->
+        <div id="tab-output" class="tab-pane active">
+          <div class="output-status" id="outputStatus">
+            <span class="status-indicator ready"></span>
+            <span class="status-text" id="statusMessage">Ready to compile</span>
+            <span class="exec-time" id="execTime"></span>
+          </div>
+          <pre class="terminal-body" id="terminalOutput">Click "Run Code" (or ⌘+Enter) to compile and execute your Mako program.</pre>
+        </div>
+
+        <!-- Tab 2: Tokens Stream -->
+        <div id="tab-tokens" class="tab-pane">
+          <div class="pane-subinfo">
+            <strong>Stage 1 — Lexical Analysis:</strong> The lexer scanned raw characters into meaningful tokens.
+          </div>
+          <div class="tokens-table-wrapper">
+            <table class="tokens-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Position</th>
+                  <th>Type</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody id="tokensList">
+                <tr><td colspan="4" class="empty-state">No tokens yet. Compile code to inspect.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: AST -->
+        <div id="tab-ast" class="tab-pane">
+          <div class="pane-subinfo">
+            <strong>Stage 2 — Syntactic Analysis:</strong> The parser structured tokens into an Abstract Syntax Tree (AST).
+          </div>
+          <div class="ast-tree-container" id="astTree">
+            <div class="empty-state">No AST generated yet. Compile code to inspect.</div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Generated C -->
+        <div id="tab-c" class="tab-pane">
+          <div class="pane-subinfo">
+            <strong>Stage 3 — Code Generation:</strong> Mako transpilated the AST into optimized C code for native compilation.
+          </div>
+          <div class="c-code-wrapper">
+            <pre class="code-view" id="cCodeView">// Generated C code will appear here after compilation</pre>
+          </div>
+        </div>
+
+        <!-- Tab 5: Pipeline Walkthrough -->
+        <div id="tab-pipeline" class="tab-pane">
+          <div class="pipeline-explainer">
+            <h3>🦈 The Mako Compilation Pipeline</h3>
+            <p>Every time you press <strong>Run</strong>, your code travels through 4 distinct stages:</p>
+
+            <div class="pipeline-steps">
+              <div class="pipeline-step">
+                <div class="step-num">1</div>
+                <div class="step-details">
+                  <h4>⚡ Lexer (Tokenizer)</h4>
+                  <p>Reads raw source characters and groups them into <code>Tokens</code> (keywords, numbers, operators, identifiers).</p>
+                  <span class="file-ref">src/lexer.c</span>
+                </div>
+              </div>
+
+              <div class="pipeline-step">
+                <div class="step-num">2</div>
+                <div class="step-details">
+                  <h4>🌳 Parser (AST Generator)</h4>
+                  <p>Validates grammar using recursive descent and constructs an <code>Abstract Syntax Tree</code> representing program hierarchy.</p>
+                  <span class="file-ref">src/parser.c</span>
+                </div>
+              </div>
+
+              <div class="pipeline-step">
+                <div class="step-num">3</div>
+                <div class="step-details">
+                  <h4>📄 Code Generator (Transpiler)</h4>
+                  <p>Walks the AST tree and produces clean, portable <code>C99</code> code.</p>
+                  <span class="file-ref">src/codegen.c</span>
+                </div>
+              </div>
+
+              <div class="pipeline-step">
+                <div class="step-num">4</div>
+                <div class="step-details">
+                  <h4>🚀 Native Execution</h4>
+                  <p>Invokes the system C compiler (<code>clang</code> / <code>gcc</code>) with <code>-O2</code> optimizations to produce a machine binary, then runs it.</p>
+                  <span class="file-ref">src/main.c</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,7 +1,4 @@
-// ╔═══════════════════════════════════════╗
-// ║  Hello World — Your first Kova program  ║
-// ╚═══════════════════════════════════════╝
-
+// Hello World — Your first Mako program
 print("Hello, World!");
 print("Welcome to Mako!");
 

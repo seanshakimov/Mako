@@ -470,7 +470,7 @@ ASTNode *parser_parse(Parser *parser) {
 
 /* ── AST Pretty Printer ─────────────────────────────────────────────── */
 
-static const char *node_type_name(NodeType type) {
+const char *ast_node_type_name(NodeType type) {
     switch (type) {
         case NODE_PROGRAM:        return "Program";
         case NODE_VAR_DECL:       return "VarDecl";
@@ -489,7 +489,7 @@ static const char *node_type_name(NodeType type) {
         case NODE_STRING_LITERAL: return "String";
         case NODE_BOOL_LITERAL:   return "Bool";
         case NODE_IDENTIFIER:     return "Ident";
-        default:                  return "???";
+        default:                  return "Unknown";
     }
 }
 
@@ -498,7 +498,7 @@ void ast_print(const ASTNode *node, int indent) {
 
     for (int i = 0; i < indent; i++) printf("  ");
 
-    printf("├─ %s", node_type_name(node->type));
+    printf("├─ %s", ast_node_type_name(node->type));
     if (node->value[0]) printf(" \"%s\"", node->value);
     if (node->op[0])    printf(" [%s]", node->op);
     if (node->param_count > 0) {
@@ -511,4 +511,43 @@ void ast_print(const ASTNode *node, int indent) {
     for (int i = 0; i < node->child_count; i++) {
         ast_print(node->children[i], indent + 1);
     }
+}
+
+void ast_dump_json(const ASTNode *node, FILE *out) {
+    if (!node) {
+        fprintf(out, "null");
+        return;
+    }
+    fprintf(out, "{\"type\": \"%s\", \"line\": %d", ast_node_type_name(node->type), node->line);
+    if (node->value[0]) {
+        fprintf(out, ", \"value\": \"");
+        for (const char *p = node->value; *p; p++) {
+            if (*p == '"') fprintf(out, "\\\"");
+            else if (*p == '\\') fprintf(out, "\\\\");
+            else if (*p == '\n') fprintf(out, "\\n");
+            else if (*p == '\r') fprintf(out, "\\r");
+            else if (*p == '\t') fprintf(out, "\\t");
+            else fputc(*p, out);
+        }
+        fprintf(out, "\"");
+    }
+    if (node->op[0]) {
+        fprintf(out, ", \"op\": \"%s\"", node->op);
+    }
+    if (node->param_count > 0) {
+        fprintf(out, ", \"params\": [");
+        for (int i = 0; i < node->param_count; i++) {
+            fprintf(out, "\"%s\"%s", node->params[i], (i + 1 < node->param_count) ? ", " : "");
+        }
+        fprintf(out, "]");
+    }
+    if (node->child_count > 0) {
+        fprintf(out, ", \"children\": [");
+        for (int i = 0; i < node->child_count; i++) {
+            ast_dump_json(node->children[i], out);
+            if (i + 1 < node->child_count) fprintf(out, ", ");
+        }
+        fprintf(out, "]");
+    }
+    fprintf(out, "}");
 }

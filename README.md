@@ -4,18 +4,24 @@
 
 ## ✨ Features (Demo v0.1)
 
+- **Interactive Web Playground**: Real-time browser-based editor with live token stream, AST visualizer, generated C code, and terminal execution
 - **Full compilation pipeline**: Lexer → Parser → AST → Code Generator
 - **Custom language**: Variables, math, if/else, while loops, functions, recursion
-- **Pipeline visualization**: See tokens, AST, and generated C code at each stage
+- **Pipeline visualization**: See tokens, AST, and generated C code at each stage (`--tokens`, `--ast`, `--emit-c`, `--json`)
 - **Transpiles to C**: Leverages system C compiler for native performance
 
-## 🏗️ Building
+## 🏗️ Building & Running
 
 ```bash
+# Build the Mako compiler binary
 make
+
+# Launch the interactive Web Playground
+make playground
+# Then open http://localhost:8080 in your browser!
 ```
 
-## 📖 Usage
+## 📖 CLI Usage
 
 ```bash
 # Compile and run a Mako program
