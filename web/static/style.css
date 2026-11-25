@@ -154,8 +154,12 @@ code, kbd, pre, textarea, .gutter, .tab-pill, .version-tag, .data-table td, .sta
 }
 
 .brand-name {
-  font-size: 0.95rem;
-  letter-spacing: -0.2px;
+  font-family: 'Space Grotesk', -apple-system, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  color: var(--text-primary);
+  line-height: 1;
 }
 
 .version-tag {
