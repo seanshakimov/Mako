@@ -154,7 +154,9 @@ static void gen_node(CodeGen *cg, ASTNode *node) {
             emit_indent(cg);
             ASTNode *arg = node->children[0];
             if (arg->type == NODE_STRING_LITERAL) {
-                emit(cg, "printf(\"%%s\\n\", \"%s\");\n", arg->value);
+                emit(cg, "printf(\"%%s\\n\", ");
+                gen_expr(cg, arg);
+                emit(cg, ");\n");
             } else {
                 emit(cg, "printf(\"%%lld\\n\", (long long)(");
                 gen_expr(cg, arg);

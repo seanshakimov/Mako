@@ -4,6 +4,10 @@
 
 #include "lexer.h"
 
+/* ── Forward Declarations ────────────────────────────────────────────── */
+static void emit_token(Lexer *l, TokenType type, const char *value, int line, int col);
+static void emit_error(Lexer *l, const char *msg, int line, int col);
+
 /* ── Helpers ─────────────────────────────────────────────────────────── */
 
 static char peek(Lexer *l) {
@@ -36,11 +40,16 @@ static void skip_whitespace_and_comments(Lexer *l) {
             while (!is_at_end(l) && peek(l) != '\n') advance(l);
         } else if (c == '/' && peek_next(l) == '*') {
             // Multi-line comment
+            int comment_line = l->line, comment_col = l->col;
             advance(l); advance(l); // skip /*
             while (!is_at_end(l) && !(peek(l) == '*' && peek_next(l) == '/')) {
                 advance(l);
             }
-            if (!is_at_end(l)) { advance(l); advance(l); } // skip */
+            if (is_at_end(l)) {
+                emit_error(l, "Unterminated block comment", comment_line, comment_col);
+                break;
+            }
+            advance(l); advance(l); // skip */
         } else {
             break;
         }
@@ -89,6 +98,7 @@ static void scan_number(Lexer *l) {
     while (!is_at_end(l) && isdigit(peek(l))) advance(l);
 
     int len = l->pos - start;
+    if (len > 255) len = 255;
     char buf[256];
     strncpy(buf, l->source + start, len);
     buf[len] = '\0';
@@ -101,6 +111,7 @@ static void scan_identifier(Lexer *l) {
     while (!is_at_end(l) && (isalnum(peek(l)) || peek(l) == '_')) advance(l);
 
     int len = l->pos - start;
+    if (len > 255) len = 255;
     char buf[256];
     strncpy(buf, l->source + start, len);
     buf[len] = '\0';
@@ -125,6 +136,7 @@ static void scan_string(Lexer *l) {
     }
 
     int len = l->pos - start;
+    if (len > 255) len = 255;
     char buf[256];
     strncpy(buf, l->source + start, len);
     buf[len] = '\0';

@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "lexer.h"
 #include "parser.h"
 #include "codegen.h"
@@ -194,9 +195,22 @@ int main(int argc, char **argv) {
     // ── STAGE 3: Code Generation ─────────────────────────────────────
     if (!show_json) printf("  ⚡ Stage 3: Code generation (Mako → C)...\n");
 
-    // Write generated C to a temp file
+    int pid = getpid();
     char c_path[512];
-    snprintf(c_path, sizeof(c_path), "/tmp/mako_output.c");
+    char compile_log[512];
+    char run_log[512];
+    char bin_path[512];
+
+    snprintf(c_path, sizeof(c_path), "/tmp/mako_%d_output.c", pid);
+    snprintf(compile_log, sizeof(compile_log), "/tmp/mako_%d_compile.log", pid);
+    snprintf(run_log, sizeof(run_log), "/tmp/mako_%d_run.log", pid);
+
+    if (output_name) {
+        snprintf(bin_path, sizeof(bin_path), "%s", output_name);
+    } else {
+        snprintf(bin_path, sizeof(bin_path), "/tmp/mako_%d_bin", pid);
+    }
+
     FILE *c_out = fopen(c_path, "w");
     if (!c_out) {
         if (show_json) {
@@ -225,12 +239,14 @@ int main(int argc, char **argv) {
             printf(", \"ast\": ");
             ast_dump_json(ast, stdout);
             printf("}\n");
+            unlink(c_path);
             ast_free(ast);
             lexer_free(&lexer);
             free(source);
             return 0;
         }
         fprintf(stderr, "  ❌ Code generation failed\n");
+        unlink(c_path);
         ast_free(ast);
         lexer_free(&lexer);
         free(source);
@@ -251,19 +267,12 @@ int main(int argc, char **argv) {
     // ── STAGE 4: Compile C → Binary ─────────────────────────────────
     if (!show_json) printf("  ⚡ Stage 4: Compiling C → native binary...\n");
 
-    char bin_path[512];
-    if (output_name) {
-        snprintf(bin_path, sizeof(bin_path), "%s", output_name);
-    } else {
-        snprintf(bin_path, sizeof(bin_path), "/tmp/mako_program");
-    }
-
     char compile_cmd[1024];
-    snprintf(compile_cmd, sizeof(compile_cmd), "cc -O2 -o %s %s > /tmp/mako_compile.log 2>&1", bin_path, c_path);
+    snprintf(compile_cmd, sizeof(compile_cmd), "cc -O2 -o %s %s > %s 2>&1", bin_path, c_path, compile_log);
     int result = system(compile_cmd);
     if (result != 0) {
         if (show_json) {
-            char *compile_err = read_source_file("/tmp/mako_compile.log");
+            char *compile_err = read_source_file(compile_log);
             printf("{\"success\": false, \"stage\": \"compile\", \"error\": \"");
             print_escaped_json_string(compile_err ? compile_err : "C compilation failed", stdout);
             printf("\", \"tokens\": ");
@@ -275,6 +284,8 @@ int main(int argc, char **argv) {
             printf("\"}\n");
             if (compile_err) free(compile_err);
             if (c_code) free(c_code);
+            unlink(c_path);
+            unlink(compile_log);
             ast_free(ast);
             lexer_free(&lexer);
             free(source);
@@ -282,6 +293,8 @@ int main(int argc, char **argv) {
         }
         fprintf(stderr, "  ❌ C compilation failed (exit code %d)\n", result);
         if (c_code) free(c_code);
+        unlink(c_path);
+        unlink(compile_log);
         ast_free(ast);
         lexer_free(&lexer);
         free(source);
@@ -292,9 +305,9 @@ int main(int argc, char **argv) {
     // ── STAGE 5: Run ─────────────────────────────────────────────────
     if (show_json) {
         char run_cmd[512];
-        snprintf(run_cmd, sizeof(run_cmd), "%s > /tmp/mako_run.log 2>&1", bin_path);
+        snprintf(run_cmd, sizeof(run_cmd), "%s > %s 2>&1", bin_path, run_log);
         int run_result = system(run_cmd);
-        char *run_output = read_source_file("/tmp/mako_run.log");
+        char *run_output = read_source_file(run_log);
 
         printf("{\"success\": true, \"stage\": \"complete\", \"tokens\": ");
         lexer_dump_json(&lexer, stdout);
@@ -307,6 +320,10 @@ int main(int argc, char **argv) {
         printf("\", \"exit_code\": %d}\n", run_result);
 
         if (run_output) free(run_output);
+        unlink(c_path);
+        unlink(compile_log);
+        unlink(run_log);
+        if (!output_name) unlink(bin_path);
     } else if (!output_name) {
         printf("  🚀 Running program:\n");
         printf("  ═══════════════════════════════════════════\n");
@@ -315,6 +332,9 @@ int main(int argc, char **argv) {
         int run_result = system(run_cmd);
         printf("  ═══════════════════════════════════════════\n");
         printf("  Exit code: %d\n\n", run_result);
+        unlink(c_path);
+        unlink(compile_log);
+        unlink(bin_path);
     }
 
     // Cleanup
