@@ -1,0 +1,17 @@
+// ╔═══════════════════════════════════════╗
+// ║  Fibonacci — Recursive function demo   ║
+// ╚═══════════════════════════════════════╝
+
+fn fib(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+// Print first 15 Fibonacci numbers
+let i = 0;
+while (i < 15) {
+    print(fib(i));
+    i = i + 1;
+}
