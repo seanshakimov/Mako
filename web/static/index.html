@@ -41,6 +41,18 @@
     </div>
 
     <div class="header-right">
+      <!-- AI Assistant Drawer Toggle -->
+      <button id="aiToggleBtn" class="btn btn-secondary" title="Toggle AI Companion">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path>
+          <rect x="4" y="8" width="16" height="12" rx="2"></rect>
+          <line x1="9" y1="13" x2="9.01" y2="13" stroke-width="3"></line>
+          <line x1="15" y1="13" x2="15.01" y2="13" stroke-width="3"></line>
+          <line x1="8" y1="17" x2="16" y2="17"></line>
+        </svg>
+        <span>AI Assistant</span>
+      </button>
+
       <!-- Theme Switcher -->
       <button id="themeToggle" class="btn btn-secondary btn-icon-only" aria-label="Toggle theme" title="Toggle Light / Dark mode">
         <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -96,10 +108,35 @@
       <div class="editor-surface">
         <div class="gutter" id="lineGutter">1</div>
         <textarea id="codeEditor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="// Enter Mako code..."></textarea>
+
+        <!-- Active AI Watcher Floating Diagnostic Banner -->
+        <div class="ai-watcher-banner hidden" id="aiWatcherBanner">
+          <div class="banner-main">
+            <div class="banner-badge">
+              <span class="watcher-dot pulse"></span>
+              <span class="watcher-title" id="watcherTitle">AI Watcher</span>
+            </div>
+            <div class="banner-body">
+              <span class="watcher-msg" id="watcherMsg">Checking code...</span>
+              <span class="watcher-desc" id="watcherDesc"></span>
+            </div>
+          </div>
+          <div class="banner-actions">
+            <button id="applyFixBtn" class="btn btn-primary btn-sm">Apply Fix</button>
+            <button id="explainFixBtn" class="btn btn-secondary btn-sm">Explain</button>
+            <button id="dismissBannerBtn" class="btn-ghost btn-sm" aria-label="Dismiss">✕</button>
+          </div>
+        </div>
       </div>
 
       <div class="panel-footer">
         <span id="cursorInfo">Ln 1, Col 1</span>
+        <div class="footer-center">
+          <span class="watcher-status-pill clean" id="watcherStatusPill">
+            <span class="status-indicator-dot"></span>
+            <span id="watcherStatusText">Watcher: Active</span>
+          </span>
+        </div>
         <span class="footer-meta">Mako 0.1 · C99 Target</span>
       </div>
     </section>
@@ -230,7 +267,68 @@
         </div>
       </div>
     </section>
+
+    <!-- AI Companion Drawer / Sidebar -->
+    <aside class="ai-drawer hidden" id="aiDrawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"></path>
+            <rect x="4" y="8" width="16" height="12" rx="2"></rect>
+            <line x1="9" y1="13" x2="9.01" y2="13" stroke-width="3"></line>
+            <line x1="15" y1="13" x2="15.01" y2="13" stroke-width="3"></line>
+          </svg>
+          <span>AI Companion</span>
+        </div>
+        <div class="drawer-controls">
+          <button id="apiKeySettingsBtn" class="btn-ghost btn-sm" title="Configure Gemini API Key">API Key</button>
+          <button id="closeDrawerBtn" class="btn-ghost btn-sm" title="Close AI Assistant">✕</button>
+        </div>
+      </div>
+
+      <div class="quick-prompts">
+        <button class="prompt-chip" data-prompt="Check my code and auto-fix any compiler errors">Auto-Fix</button>
+        <button class="prompt-chip" data-prompt="How can I optimize this code for speed and lower stack depth?">Optimize</button>
+        <button class="prompt-chip" data-prompt="Explain what the Abstract Syntax Tree does for this code">Explain AST</button>
+        <button class="prompt-chip" data-prompt="Add educational comments explaining every line of this code">Add Comments</button>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-bubble ai">
+          <p>Hi! I'm your Mako AI Companion. I watch your code in real time to catch syntax and logic bugs, suggest optimizations, and explain the compiler pipeline. Ask me anything or click a quick action above!</p>
+        </div>
+      </div>
+
+      <div class="chat-input-bar">
+        <textarea id="chatInput" placeholder="Ask Mako AI about your code... (Enter to send)" rows="1"></textarea>
+        <button id="sendChatBtn" class="btn btn-primary btn-sm" aria-label="Send">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </aside>
   </main>
+
+  <!-- API Key Modal -->
+  <div class="modal-backdrop hidden" id="apiKeyModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Gemini API Key Configuration</h3>
+        <button id="closeModalBtn" class="btn-ghost">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Mako features an offline heuristic compiler diagnostics engine out of the box. To connect Google's Gemini models for open-ended code generation, enter your API key below:</p>
+        <input type="password" id="apiKeyInput" placeholder="Enter Gemini API key (AIzaSy...)" spellcheck="false">
+        <span class="modal-hint">Key is saved in your browser's local storage and used directly for requests.</span>
+      </div>
+      <div class="modal-footer">
+        <button id="clearKeyBtn" class="btn btn-secondary">Clear</button>
+        <button id="saveKeyBtn" class="btn btn-primary">Save Key</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

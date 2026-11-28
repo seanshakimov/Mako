@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   Mako Playground — Client Application
+   Mako Playground — Client Application with Active AI Code Companion
    ═══════════════════════════════════════════════════════════════════════ */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (savedTheme) {
       htmlEl.setAttribute("data-theme", savedTheme);
     } else {
-      // Default to dark with purple hues
       htmlEl.setAttribute("data-theme", "dark");
     }
   }
@@ -49,11 +48,76 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyConsoleBtn = document.getElementById("copyConsoleBtn");
   const copyCodeBtn = document.getElementById("copyCodeBtn");
 
+  // AI Watcher Elements
+  const aiWatcherBanner = document.getElementById("aiWatcherBanner");
+  const watcherTitle = document.getElementById("watcherTitle");
+  const watcherMsg = document.getElementById("watcherMsg");
+  const watcherDesc = document.getElementById("watcherDesc");
+  const applyFixBtn = document.getElementById("applyFixBtn");
+  const explainFixBtn = document.getElementById("explainFixBtn");
+  const dismissBannerBtn = document.getElementById("dismissBannerBtn");
+  const watcherStatusPill = document.getElementById("watcherStatusPill");
+  const watcherStatusText = document.getElementById("watcherStatusText");
+
+  // AI Assistant Drawer Elements
+  const workbench = document.querySelector(".workbench");
+  const aiToggleBtn = document.getElementById("aiToggleBtn");
+  const aiDrawer = document.getElementById("aiDrawer");
+  const closeDrawerBtn = document.getElementById("closeDrawerBtn");
+  const chatMessages = document.getElementById("chatMessages");
+  const chatInput = document.getElementById("chatInput");
+  const sendChatBtn = document.getElementById("sendChatBtn");
+  const promptChips = document.querySelectorAll(".prompt-chip");
+
+  // API Key Modal Elements
+  const apiKeySettingsBtn = document.getElementById("apiKeySettingsBtn");
+  const apiKeyModal = document.getElementById("apiKeyModal");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const apiKeyInput = document.getElementById("apiKeyInput");
+  const saveKeyBtn = document.getElementById("saveKeyBtn");
+  const clearKeyBtn = document.getElementById("clearKeyBtn");
+
   const tabItems = document.querySelectorAll(".tab-item");
   const tabViews = document.querySelectorAll(".tab-view");
 
   let examplesCache = {};
   let currentExampleKey = "hello.mako";
+  let activeDiagnosticData = null;
+  let watcherDebounceTimer = null;
+  let isBannerDismissed = false;
+
+  // ── API Key Management ───────────────────────────────────────────────
+  function getApiKey() {
+    return localStorage.getItem("mako_gemini_key") || "";
+  }
+
+  apiKeySettingsBtn.addEventListener("click", () => {
+    apiKeyInput.value = getApiKey();
+    apiKeyModal.classList.remove("hidden");
+    apiKeyInput.focus();
+  });
+
+  closeModalBtn.addEventListener("click", () => {
+    apiKeyModal.classList.add("hidden");
+  });
+
+  saveKeyBtn.addEventListener("click", () => {
+    const key = apiKeyInput.value.trim();
+    if (key) {
+      localStorage.setItem("mako_gemini_key", key);
+    } else {
+      localStorage.removeItem("mako_gemini_key");
+    }
+    apiKeyModal.classList.add("hidden");
+    appendAiMessage("Gemini API key updated. Enhanced natural language models are now active!");
+  });
+
+  clearKeyBtn.addEventListener("click", () => {
+    localStorage.removeItem("mako_gemini_key");
+    apiKeyInput.value = "";
+    apiKeyModal.classList.add("hidden");
+    appendAiMessage("Using built-in Mako heuristic compiler assistant.");
+  });
 
   // ── Tab Navigation ───────────────────────────────────────────────────
   tabItems.forEach(tab => {
@@ -92,7 +156,12 @@ document.addEventListener("DOMContentLoaded", () => {
     cursorInfo.textContent = `Ln ${line}, Col ${col}`;
   }
 
-  codeEditor.addEventListener("input", updateGutter);
+  codeEditor.addEventListener("input", () => {
+    updateGutter();
+    isBannerDismissed = false;
+    scheduleWatcherCheck();
+  });
+
   codeEditor.addEventListener("keyup", updateCursorInfo);
   codeEditor.addEventListener("click", updateCursorInfo);
 
@@ -121,6 +190,251 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // ── Active Code Watcher (Debounced Real-Time Linter) ─────────────────
+  function scheduleWatcherCheck() {
+    clearTimeout(watcherDebounceTimer);
+    setWatcherStatus("checking", "Watcher: Analyzing...");
+
+    watcherDebounceTimer = setTimeout(async () => {
+      const code = codeEditor.value;
+      if (!code.trim()) {
+        hideWatcherBanner();
+        setWatcherStatus("clean", "Watcher: Empty");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/ai/diagnose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, api_key: getApiKey() })
+        });
+        const data = await res.json();
+        handleWatcherResult(data);
+      } catch (err) {
+        setWatcherStatus("clean", "Watcher: Idle");
+      }
+    }, 600);
+  }
+
+  function setWatcherStatus(state, text) {
+    watcherStatusPill.className = `watcher-status-pill ${state}`;
+    watcherStatusText.textContent = text;
+  }
+
+  function handleWatcherResult(data) {
+    activeDiagnosticData = data;
+
+    if (data.has_issue) {
+      setWatcherStatus("issue", `Watcher: ${data.title || 'Issue Detected'}`);
+      if (!isBannerDismissed) {
+        showWatcherBanner(data);
+      }
+    } else {
+      setWatcherStatus("clean", "Watcher: Clean");
+      hideWatcherBanner();
+    }
+  }
+
+  function showWatcherBanner(data) {
+    watcherTitle.textContent = data.title || "AI Watcher";
+    watcherMsg.textContent = data.message || "Potential syntax issue detected";
+    watcherDesc.textContent = data.explanation || "";
+
+    aiWatcherBanner.className = `ai-watcher-banner ${data.type || 'error'}`;
+    if (data.suggested_code) {
+      applyFixBtn.classList.remove("hidden");
+    } else {
+      applyFixBtn.classList.add("hidden");
+    }
+
+    aiWatcherBanner.classList.remove("hidden");
+  }
+
+  function hideWatcherBanner() {
+    aiWatcherBanner.classList.add("hidden");
+  }
+
+  dismissBannerBtn.addEventListener("click", () => {
+    isBannerDismissed = true;
+    hideWatcherBanner();
+  });
+
+  applyFixBtn.addEventListener("click", () => {
+    if (activeDiagnosticData && activeDiagnosticData.suggested_code) {
+      codeEditor.value = activeDiagnosticData.suggested_code;
+      updateGutter();
+      updateCursorInfo();
+      hideWatcherBanner();
+      setWatcherStatus("clean", "Watcher: Fix Applied");
+      executeCode();
+    }
+  });
+
+  explainFixBtn.addEventListener("click", () => {
+    openDrawer();
+    if (activeDiagnosticData) {
+      sendChatMessage(`Explain this issue in detail: "${activeDiagnosticData.message}". Why does Mako require this?`);
+    }
+  });
+
+  // ── AI Drawer Navigation ─────────────────────────────────────────────
+  function openDrawer() {
+    aiDrawer.classList.remove("hidden");
+    workbench.classList.add("with-drawer");
+    chatInput.focus();
+  }
+
+  function closeDrawer() {
+    aiDrawer.classList.add("hidden");
+    workbench.classList.remove("with-drawer");
+  }
+
+  aiToggleBtn.addEventListener("click", () => {
+    if (aiDrawer.classList.contains("hidden")) {
+      openDrawer();
+    } else {
+      closeDrawer();
+    }
+  });
+
+  closeDrawerBtn.addEventListener("click", closeDrawer);
+
+  // ── Chat Messaging ───────────────────────────────────────────────────
+  async function sendChatMessage(userText) {
+    const text = userText || chatInput.value.trim();
+    if (!text) return;
+
+    appendUserMessage(text);
+    chatInput.value = "";
+
+    const loadingId = appendAiMessage("Thinking...");
+
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          code: codeEditor.value,
+          api_key: getApiKey()
+        })
+      });
+      const data = await res.json();
+      updateAiMessage(loadingId, data.reply || "No response received.");
+    } catch (err) {
+      updateAiMessage(loadingId, `Could not reach AI assistant: ${err.message}`);
+    }
+  }
+
+  sendChatBtn.addEventListener("click", () => sendChatMessage());
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+
+  promptChips.forEach(chip => {
+    chip.addEventListener("click", () => {
+      openDrawer();
+      sendChatMessage(chip.getAttribute("data-prompt"));
+    });
+  });
+
+  function appendUserMessage(text) {
+    const div = document.createElement("div");
+    div.className = "chat-bubble user";
+    div.textContent = text;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function appendAiMessage(rawContent) {
+    const id = "msg-" + Date.now();
+    const div = document.createElement("div");
+    div.className = "chat-bubble ai";
+    div.id = id;
+    div.innerHTML = formatMarkdown(rawContent);
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    attachCodeActionListeners(div);
+    return id;
+  }
+
+  function updateAiMessage(id, rawContent) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.innerHTML = formatMarkdown(rawContent);
+      attachCodeActionListeners(el);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  }
+
+  function attachCodeActionListeners(container) {
+    container.querySelectorAll(".btn-insert-code").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const rawCode = decodeURIComponent(btn.getAttribute("data-code"));
+        codeEditor.value = rawCode;
+        updateGutter();
+        updateCursorInfo();
+        executeCode();
+        btn.textContent = "Inserted!";
+        setTimeout(() => { btn.textContent = "Insert"; }, 1500);
+      });
+    });
+
+    container.querySelectorAll(".btn-copy-code").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const rawCode = decodeURIComponent(btn.getAttribute("data-code"));
+        navigator.clipboard.writeText(rawCode);
+        btn.textContent = "Copied!";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      });
+    });
+  }
+
+  function formatMarkdown(text) {
+    if (!text) return "";
+
+    // Escape HTML first
+    let escaped = escapeHtml(text);
+
+    // Code blocks ```mako ... ```
+    escaped = escaped.replace(/```(?:mako|c)?\n([\s\S]*?)```/g, (match, code) => {
+      const cleanCode = code.trim();
+      const encoded = encodeURIComponent(cleanCode);
+      return `
+        <div class="ai-code-block">
+          <div class="ai-code-header">
+            <span>Mako</span>
+            <div class="ai-code-actions">
+              <button class="btn-ghost btn-sm btn-copy-code" data-code="${encoded}">Copy</button>
+              <button class="btn-primary btn-sm btn-insert-code" data-code="${encoded}">Insert</button>
+            </div>
+          </div>
+          <pre><code>${cleanCode}</code></pre>
+        </div>
+      `;
+    });
+
+    // Headers
+    escaped = escaped.replace(/^### (.*$)/gim, "<h3>$1</h3>");
+    escaped = escaped.replace(/^## (.*$)/gim, "<h3>$1</h3>");
+
+    // Bold
+    escaped = escaped.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+    // Inline code `...`
+    escaped = escaped.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+    // Line breaks
+    escaped = escaped.replace(/\n\n+/g, "</p><p>");
+    escaped = escaped.replace(/\n/g, "<br>");
+
+    return `<p>${escaped}</p>`;
+  }
+
   // ── Load Examples ───────────────────────────────────────────────────
   async function loadExamples() {
     try {
@@ -142,8 +456,6 @@ document.addEventListener("DOMContentLoaded", () => {
         setExample(Object.keys(examplesCache)[0]);
       }
     } catch (err) {
-      console.warn("Failed to fetch examples from API:", err);
-      // Fallback
       codeEditor.value = `// hello.mako
 print("Hello, World!");
 print("Welcome to Mako!");
@@ -166,6 +478,7 @@ print(sum);
       updateGutter();
       updateCursorInfo();
       executeCode();
+      scheduleWatcherCheck();
     }
   }
 
@@ -179,6 +492,7 @@ print(sum);
       updateGutter();
       updateCursorInfo();
       executeCode();
+      scheduleWatcherCheck();
     }
   });
 
@@ -187,6 +501,7 @@ print(sum);
     codeEditor.focus();
     updateGutter();
     updateCursorInfo();
+    scheduleWatcherCheck();
   });
 
   runBtn.addEventListener("click", executeCode);
@@ -253,13 +568,9 @@ print(sum);
       consoleOutput.textContent = data.error || "Compilation failed.";
     }
 
-    // Render Tokens Table
     renderTokens(data.tokens || []);
-
-    // Render AST View
     renderAST(data.ast);
 
-    // Render C Source
     if (data.c_code) {
       cCodeBlock.textContent = data.c_code;
     } else {
