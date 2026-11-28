@@ -804,7 +804,9 @@ code, kbd, pre, textarea, .gutter, .tab-pill, .version-tag, .data-table td, .sta
     top: 50px;
     right: 0;
     bottom: 0;
+    height: calc(100vh - 50px);
     width: 340px;
+    max-width: 100vw;
     z-index: 50;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
   }
@@ -1131,6 +1133,7 @@ code, kbd, pre, textarea, .gutter, .tab-pill, .version-tag, .data-table td, .sta
 .chat-input-bar {
   flex-shrink: 0;
   display: flex;
+  align-items: center;
   gap: 8px;
   padding: 10px 12px;
   border-top: 1px solid var(--border-subtle);
@@ -1148,7 +1151,9 @@ code, kbd, pre, textarea, .gutter, .tab-pill, .version-tag, .data-table td, .sta
   font-family: inherit;
   resize: none;
   outline: none;
-  line-height: 1.3;
+  line-height: 1.4;
+  height: 36px;
+  box-sizing: border-box;
 }
 
 #chatInput:focus {
